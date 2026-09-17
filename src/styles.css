@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    margin: 0;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    background: #fbfaf7;
+    color: #111110;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, textarea {
+    font: inherit;
+  }
+  button {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-neutral-950 px-5 py-2.5 text-sm font-semibold text-[#fbfaf7] transition hover:-translate-y-0.5 hover:bg-neutral-800 active:translate-y-0;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-neutral-950/15 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-950 transition hover:-translate-y-0.5 hover:border-neutral-950 active:translate-y-0;
+  }
+  .field {
+    @apply w-full rounded-2xl border border-neutral-950/15 bg-white px-4 py-3 text-sm text-neutral-950 outline-none transition placeholder:text-neutral-400 focus:border-neutral-950 focus:ring-4 focus:ring-neutral-950/5;
+  }
+  .share-tile {
+    @apply flex min-h-[96px] flex-col items-center justify-center gap-2 rounded-2xl border border-neutral-950/10 bg-white px-4 py-5 text-sm font-semibold text-neutral-800 transition hover:-translate-y-0.5 hover:border-neutral-950/35;
+  }
+}
+
+@media (max-width: 640px) {
+  .btn-primary, .btn-secondary {
+    width: 100%;
+  }
+}
