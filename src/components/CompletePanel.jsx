@@ -1,11 +1,20 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, Copy, Download, QrCode, Share2, ExternalLink } from 'lucide-react'
+import { Check, Copy, Download, ExternalLink, Mail, QrCode, RotateCcw, Share2 } from 'lucide-react'
 import { formatBytes } from '../utils.js'
 
-export default function CompletePanel({ files, link, transferId, expiresIn, passwordEnabled, onShare }) {
+export default function CompletePanel({ files, link, transferId, expiresIn, passwordEnabled, recipients = [], qrCodeUrl = '', onShare, onResend, resending = false, emailStatusError = '' }) {
   const [copied, setCopied] = useState(false)
   const total = files.reduce((sum, file) => sum + file.size, 0)
+  const canResend = recipients.some(recipient => recipient.emailStatus !== 'sent')
+
+  const formatRecipientStatus = (recipient) => {
+    const emailStatus = recipient.emailStatus === 'sent' ? 'email sent' : recipient.emailStatus === 'failed' ? 'email failed' : 'email pending'
+    if (recipient.status === 'delivered') return `Downloaded · ${emailStatus}`
+    if (recipient.emailStatus === 'sent') return 'Email sent'
+    if (recipient.emailStatus === 'failed') return recipient.emailError ? `Email failed: ${recipient.emailError}` : 'Email failed'
+    return 'Email pending'
+  }
 
   const copy = async () => {
     if (!link) return
@@ -58,6 +67,35 @@ export default function CompletePanel({ files, link, transferId, expiresIn, pass
         <button onClick={onShare} className="btn-secondary"><Share2 size={16} /> Share</button>
         <button onClick={onShare} className="btn-secondary"><QrCode size={16} /> Download QR</button>
       </div>
+
+      {recipients.length > 0 && (
+        <section className="mt-8 rounded-2xl border border-neutral-950/10 bg-white/70 p-5 text-left" aria-live="polite">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-950">
+              <Mail size={16} /> Recipient email status
+            </div>
+            {canResend && onResend && (
+              <button onClick={onResend} disabled={resending} className="inline-flex items-center gap-2 rounded-full border border-neutral-950/20 px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-neutral-950 hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-50">
+                <RotateCcw size={13} /> {resending ? 'Resending...' : 'Resend failed emails'}
+              </button>
+            )}
+          </div>
+          {emailStatusError && <p className="mt-3 text-sm text-neutral-700">{emailStatusError}</p>}
+          <ul className="mt-4 space-y-3">
+            {recipients.map((recipient) => (
+              <li key={`${recipient.email}-${recipient.emailMessageId || recipient.lastEmailAttemptAt || 'pending'}`} className="flex items-start justify-between gap-4 border-t border-neutral-950/10 pt-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-neutral-950">{recipient.email}</p>
+                  <p className="mt-1 truncate text-xs text-neutral-500">{formatRecipientStatus(recipient)}</p>
+                </div>
+                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${recipient.status === 'delivered' || recipient.emailStatus === 'sent' ? 'border-neutral-950/20 bg-neutral-950 text-[#fbfaf7]' : 'border-neutral-950/15 bg-neutral-100 text-neutral-700'}`}>
+                  {recipient.status === 'delivered' ? (recipient.emailStatus === 'failed' ? 'Downloaded / email failed' : 'Downloaded') : recipient.emailStatus === 'sent' ? 'Sent' : recipient.emailStatus === 'failed' ? 'Failed' : 'Pending'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <dl className="mx-auto mt-10 grid max-w-2xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-950/10 bg-neutral-950/10 sm:grid-cols-4">
         {[

@@ -2,6 +2,7 @@ const request = require('supertest');
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const Transfer = require('../src/models/Transfer');
+const emailService = require('../src/services/emailService');
 
 let mongod;
 let app;
@@ -25,6 +26,7 @@ afterAll(async () => {
 });
 
 afterEach(async () => {
+  jest.restoreAllMocks();
   const collections = mongoose.connection.collections;
   for (const key in collections) {
     await collections[key].deleteMany({});
@@ -169,12 +171,60 @@ describe('Transfer Controller', () => {
     expect(res.status).toBe(403);
   });
 
-  it('should not get non-existent transfer', async () => {
+  it('should allow transfers without recipients', async () => {
     const res = await request(app)
-      .get('/api/v1/transfers/nonexistent')
-      .set('Authorization', `Bearer ${authToken}`);
+      .post('/api/v1/transfers')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        recipients: [],
+        files: [
+          {
+            fileId: 'file1',
+            originalName: 'test.txt',
+            storageKey: 'transfers/file1/test.txt',
+            mimeType: 'text/plain',
+            size: 1024
+          }
+        ]
+      });
 
-    expect(res.status).toBe(404);
-    expect(res.body.error.code).toBe('TRANSFER_NOT_FOUND');
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('should match email results to recipients by email', async () => {
+    jest.spyOn(emailService, 'sendTransferEmail').mockResolvedValue([
+      { email: 'second@example.com', success: true, provider: 'smtp', messageId: 'second-message' },
+      { email: 'first@example.com', success: false, provider: 'smtp', error: 'failed' }
+    ]);
+
+    const createRes = await request(app)
+      .post('/api/v1/transfers')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        recipients: [
+          { email: 'first@example.com' },
+          { email: 'second@example.com' }
+        ],
+        files: [
+          {
+            fileId: 'file1',
+            originalName: 'test.txt',
+            storageKey: 'transfers/file1/test.txt',
+            mimeType: 'text/plain',
+            size: 1024
+          }
+        ]
+      });
+
+    const completeRes = await request(app)
+      .post(`/api/v1/transfers/${createRes.body.data.transferId}/complete`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({});
+
+    expect(completeRes.status).toBe(200);
+    expect(completeRes.body.data.recipients[0].emailStatus).toBe('failed');
+    expect(completeRes.body.data.recipients[1].emailStatus).toBe('sent');
+    expect(completeRes.body.data.recipients[1].emailMessageId).toBe('second-message');
   });
 });

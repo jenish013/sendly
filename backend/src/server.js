@@ -2,6 +2,7 @@ require('dotenv').config();
 const app = require('./app');
 const { connectDB } = require('./config/db');
 const { markExpiredTransfers, deleteExpiredTransferFiles } = require('./services/transferService');
+const emailService = require('./services/emailService');
 const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 5000;
@@ -9,6 +10,16 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     await connectDB();
+
+    emailService.verifyTransporter()
+      .then((verified) => {
+        if (!verified) {
+          logger.warn('Email provider is not ready. Transfers can still be shared with a manual link.');
+        }
+      })
+      .catch((error) => {
+        logger.error(`Email provider verification failed: ${error.message}`);
+      });
 
     const server = app.listen(PORT, '0.0.0.0', () => {
       logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);

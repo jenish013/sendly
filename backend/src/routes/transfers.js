@@ -12,6 +12,7 @@ router.post('/:id/complete', transferController.completeTransfer);
 router.get('/sent', transferLimiter, transferController.getSentTransfers);
 router.get('/received', transferLimiter, transferController.getReceivedTransfers);
 router.get('/:id', transferController.getTransfer);
+router.get('/:id/qr', transferController.getTransferQr);
 router.delete('/:id', transferController.deleteTransfer);
 router.post('/:id/revoke', transferController.revokeTransfer);
 router.post('/:id/resend-email', transferController.resendEmail);

@@ -1,6 +1,30 @@
 const Transfer = require('../models/Transfer');
 const transferService = require('../services/transferService');
+const emailService = require('../services/emailService');
 const AppError = require('../utils/appError');
+
+const serializeTransfer = (transfer, includeRecipients = false) => {
+  const data = includeRecipients ? transfer.toSenderJSON() : transfer.toPublicJSON();
+  const transferUrl = emailService.getTransferUrl(transfer, transfer.publicOrigin);
+  return {
+    ...data,
+    transferUrl,
+    qrCodeUrl: emailService.getQrCodeUrl(transferUrl)
+  };
+};
+
+const serializeRecipients = (recipients) => (recipients || []).map(recipient => ({
+  email: recipient.email,
+  name: recipient.name,
+  status: recipient.status,
+  emailStatus: recipient.emailStatus,
+  emailError: recipient.emailError,
+  emailProvider: recipient.emailProvider,
+  emailMessageId: recipient.emailMessageId,
+  notifiedAt: recipient.notifiedAt,
+  lastEmailAttemptAt: recipient.lastEmailAttemptAt,
+  downloadedAt: recipient.downloadedAt
+}));
 
 const completeTransfer = async (req, res, next) => {
   try {
@@ -17,12 +41,17 @@ const completeTransfer = async (req, res, next) => {
 
     const result = await transferService.completeTransfer(transfer.transferId, transfer.files)
 
+    const serializedTransfer = serializeTransfer(result.transfer, true);
     res.json({
       success: true,
       data: {
-        transferId: result.transferId,
-        status: result.status,
-        message: 'Transfer completed successfully'
+        transferId: serializedTransfer.transferId,
+        status: serializedTransfer.status,
+        transferUrl: serializedTransfer.transferUrl,
+        qrCodeUrl: serializedTransfer.qrCodeUrl,
+        message: 'Transfer completed successfully',
+        emailResults: result.emailResults,
+        recipients: serializeRecipients(result.transfer.recipients)
       }
     })
   } catch (error) {
@@ -88,7 +117,7 @@ const getSentTransfers = async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        transfers: transfers.map(t => t.toPublicJSON()),
+        transfers: transfers.map(transfer => serializeTransfer(transfer, true)),
         pagination: {
           page,
           limit,
@@ -124,7 +153,7 @@ const getReceivedTransfers = async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        transfers: transfers.map(t => t.toPublicJSON()),
+        transfers: transfers.map(serializeTransfer),
         pagination: {
           page,
           limit,
@@ -151,7 +180,7 @@ const getTransfer = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: transfer.toPublicJSON()
+      data: serializeTransfer(transfer, true)
     });
   } catch (error) {
     next(error);
@@ -194,12 +223,41 @@ const revokeTransfer = async (req, res, next) => {
   }
 };
 
-const resendEmail = async (req, res, next) => {
+const getTransferQr = async (req, res, next) => {
   try {
-    await transferService.resendEmail(req.params.id, req.user._id);
+    const transfer = await Transfer.findOne({ transferId: req.params.id });
+    if (!transfer) {
+      return next(new AppError('Transfer not found', 'TRANSFER_NOT_FOUND', 404));
+    }
+
+    if (transfer.senderId.toString() !== req.user._id.toString()) {
+      return next(new AppError('Forbidden', 'FORBIDDEN', 403));
+    }
+
+    const transferUrl = emailService.getTransferUrl(transfer, transfer.publicOrigin);
     res.json({
       success: true,
-      data: { message: 'Emails resent successfully' }
+      data: {
+        transferId: transfer.transferId,
+        transferUrl,
+        qrCodeUrl: emailService.getQrCodeUrl(transferUrl)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resendEmail = async (req, res, next) => {
+  try {
+    const result = await transferService.resendEmail(req.params.id, req.user._id);
+    res.json({
+      success: true,
+      data: {
+        message: 'Email resend completed',
+        emailResults: result.emailResults,
+        recipients: serializeRecipients(result.transfer.recipients)
+      }
     });
   } catch (error) {
     if (error.message === 'Transfer not found') {
@@ -218,6 +276,7 @@ module.exports = {
   getSentTransfers,
   getReceivedTransfers,
   getTransfer,
+  getTransferQr,
   deleteTransfer,
   revokeTransfer,
   resendEmail

@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, Clock, Download } from 'lucide-react'
+import { ArrowUpRight, Clock, Download, Mail } from 'lucide-react'
 import { formatBytes } from '../utils.js'
 import transferService from '../services/transferService'
 import authService from '../services/auth'
+
+const formatRecipientStatus = (recipient) => {
+  const emailStatus = recipient.emailStatus === 'sent' ? 'email sent' : recipient.emailStatus === 'failed' ? 'email failed' : 'email pending'
+  if (recipient.status === 'delivered') return `Downloaded · ${emailStatus}`
+  if (recipient.emailStatus === 'sent') return 'Email sent'
+  if (recipient.emailStatus === 'failed') return 'Email failed'
+  return 'Email pending'
+}
 
 export default function TransferHistory() {
   const [transfers, setTransfers] = useState([])
@@ -71,6 +79,15 @@ export default function TransferHistory() {
               <Link key={transfer.transferId} to={`/t/${transfer.transferId}`} className={`grid grid-cols-[1fr_auto] items-center gap-4 px-5 py-5 transition hover:bg-neutral-950/[0.03] md:grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_44px] md:px-6 ${transfer.status === 'expired' || transfer.status === 'revoked' ? 'opacity-55' : ''}`}>
                 <span>
                   <span className="block font-medium">{mainFile?.originalName || transfer.transferId}</span>
+                  {transfer.recipients?.length > 0 && (
+                    <span className="mt-1.5 flex flex-wrap gap-1.5">
+                      {transfer.recipients.map((recipient) => (
+                        <span key={`${recipient.email}-${recipient.emailMessageId || recipient.lastEmailAttemptAt || 'pending'}`} className="inline-flex items-center gap-1 rounded-full border border-neutral-950/10 bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600" title={formatRecipientStatus(recipient)}>
+                          <Mail size={10} /> {recipient.email} · {formatRecipientStatus(recipient)}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                   <span className="mt-1 flex items-center gap-2 text-sm text-neutral-500 md:hidden"><Clock size={14} /> {transfer.expiresAt ? new Date(transfer.expiresAt).toLocaleDateString() : '-'} · {formatBytes(totalSize)}</span>
                 </span>
                 <span className="hidden text-neutral-600 md:block">{formatBytes(totalSize)}</span>

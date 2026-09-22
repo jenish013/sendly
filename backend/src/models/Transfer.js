@@ -28,6 +28,22 @@ const recipientSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'sent', 'failed'],
     default: 'pending'
+  },
+  emailError: {
+    type: String,
+    default: null
+  },
+  emailProvider: {
+    type: String,
+    default: null
+  },
+  emailMessageId: {
+    type: String,
+    default: null
+  },
+  lastEmailAttemptAt: {
+    type: Date,
+    default: null
   }
 });
 
@@ -121,6 +137,18 @@ transferSchema.methods.isExpired = function() {
 };
 
 transferSchema.methods.toPublicJSON = function() {
+  const obj = this.toObject();
+  delete obj.passwordHash;
+  delete obj.senderId;
+  delete obj.recipients;
+  obj.recipientCount = this.recipients?.length || 0;
+  for (const file of obj.files) {
+    delete file.storageKey;
+  }
+  return obj;
+};
+
+transferSchema.methods.toSenderJSON = function() {
   const obj = this.toObject();
   delete obj.passwordHash;
   delete obj.senderId;

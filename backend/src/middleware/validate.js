@@ -36,8 +36,8 @@ const validateLogin = (req, res, next) => {
 const validateCreateTransfer = (req, res, next) => {
   const { recipients, files, message, passwordProtected, password, expiresIn } = req.body;
 
-  if (!Array.isArray(recipients) || recipients.length === 0) {
-    return next(new AppError('At least one recipient is required', 'VALIDATION_ERROR', 400));
+  if (!Array.isArray(recipients)) {
+    return next(new AppError('Recipients must be an array', 'VALIDATION_ERROR', 400));
   }
 
   for (const r of recipients) {

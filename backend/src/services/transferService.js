@@ -43,6 +43,45 @@ const createTransfer = async (userId, data) => {
   return transfer;
 };
 
+const applyEmailResults = (transfer, emailResults) => {
+  const resultsByEmail = new Map();
+  for (const result of emailResults || []) {
+    if (result?.email) {
+      resultsByEmail.set(result.email.toLowerCase(), result);
+    }
+  }
+
+  for (const recipient of transfer.recipients || []) {
+    const result = resultsByEmail.get(recipient.email.toLowerCase());
+    const attemptTime = new Date();
+
+    recipient.lastEmailAttemptAt = attemptTime;
+
+    if (!result) {
+      recipient.emailStatus = 'failed';
+      recipient.emailError = 'Email provider returned no result';
+      recipient.emailProvider = null;
+      recipient.emailMessageId = null;
+      recipient.status = 'failed';
+      continue;
+    }
+
+    recipient.emailProvider = result.provider || null;
+    recipient.emailMessageId = result.messageId || null;
+
+    if (result.success) {
+      recipient.emailStatus = 'sent';
+      recipient.emailError = null;
+      recipient.notifiedAt = attemptTime;
+      recipient.status = 'sent';
+    } else {
+      recipient.emailStatus = 'failed';
+      recipient.emailError = result.error || result.reason || 'Email sending failed';
+      recipient.status = 'failed';
+    }
+  }
+};
+
 const completeTransfer = async (transferId, files) => {
   const transfer = await Transfer.findOne({ transferId });
   if (!transfer) {
@@ -50,10 +89,12 @@ const completeTransfer = async (transferId, files) => {
   }
 
   if (transfer.status !== 'uploading') {
+    if (transfer.status === 'active') {
+      return { transfer, emailResults: [], alreadyCompleted: true };
+    }
     throw new Error('Transfer is not in uploading status');
   }
 
-  transfer.status = 'processing';
   transfer.files = files.map(f => ({
     fileId: f.fileId,
     originalName: f.originalName,
@@ -63,39 +104,26 @@ const completeTransfer = async (transferId, files) => {
     checksum: f.checksum || null
   }));
   transfer.totalSize = files.reduce((sum, f) => sum + (f.size || 0), 0);
+  transfer.status = 'active';
   await transfer.save();
 
+  let emailResults = [];
   try {
-    let emailResults = []
-    try {
-      emailResults = await emailService.sendTransferEmail(transfer, transfer.publicOrigin)
-    } catch (emailError) {
-      logger.error(`Transfer email failed for ${transferId}: ${emailError.message}`)
-    }
-
-    transfer.recipients.forEach((recipient, index) => {
-      const result = emailResults[index]
-      if (result) {
-        recipient.emailStatus = result.success ? 'sent' : 'failed'
-        if (result.success) {
-          recipient.notifiedAt = new Date()
-          recipient.status = 'sent'
-        }
-      } else {
-        recipient.emailStatus = 'failed'
-      }
-    })
-
-    transfer.status = 'active'
-    await transfer.save()
-    logger.info(`Transfer completed: ${transferId}, emails sent: ${emailResults.filter(r => r && r.success).length}`)
-    return transfer
-  } catch (error) {
-    transfer.status = 'failed'
-    await transfer.save()
-    logger.error(`Transfer completion failed: ${transferId}, error: ${error.message}`)
-    throw error
+    emailResults = await emailService.sendTransferEmail(transfer, transfer.publicOrigin);
+  } catch (emailError) {
+    logger.error(`Transfer email failed for ${transferId}: ${emailError.message}`);
+    emailResults = (transfer.recipients || []).map(recipient => ({
+      email: recipient.email,
+      success: false,
+      error: emailError.message
+    }));
   }
+
+  applyEmailResults(transfer, emailResults);
+  await transfer.save();
+
+  logger.info(`Transfer completed: ${transferId}, emails sent: ${emailResults.filter(result => result?.success).length}`);
+  return { transfer, emailResults };
 };
 
 const getPublicTransfer = async (transferId) => {
@@ -138,7 +166,7 @@ const recordDownload = async (transferId, fileId, recipientEmail) => {
 
   transfer.downloadCount += 1;
 
-  const recipient = transfer.recipients.find(r => r.email === recipientEmail);
+  const recipient = transfer.recipients.find(r => r.email.toLowerCase() === String(recipientEmail || '').toLowerCase());
   if (recipient) {
     recipient.downloadedAt = new Date();
     recipient.status = 'delivered';
@@ -189,21 +217,17 @@ const resendEmail = async (transferId, userId) => {
     throw new Error('Transfer is not active');
   }
 
-  const results = await emailService.sendTransferEmail(transfer, transfer.publicOrigin);
-  
-  transfer.recipients.forEach((recipient, index) => {
-    const result = results[index];
-    if (result) {
-      recipient.emailStatus = result.success ? 'sent' : 'failed';
-      if (result.success) {
-        recipient.notifiedAt = new Date();
-      }
-    }
-  });
+  const recipientsToNotify = (transfer.recipients || []).filter(recipient => recipient.emailStatus !== 'sent');
+  const emailResults = recipientsToNotify.length > 0
+    ? await emailService.sendTransferEmail(transfer, transfer.publicOrigin, {
+        recipientEmails: recipientsToNotify.map(recipient => recipient.email)
+      })
+    : [];
 
+  applyEmailResults(transfer, emailResults);
   await transfer.save();
-  logger.info(`Email resent for transfer: ${transferId}`);
-  return transfer;
+  logger.info(`Email resend completed for transfer: ${transferId}`);
+  return { transfer, emailResults };
 };
 
 const markExpiredTransfers = async () => {

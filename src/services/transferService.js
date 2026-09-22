@@ -29,6 +29,11 @@ export const transferService = {
     return response.data
   },
 
+  async getTransferQr(id) {
+    const response = await api.get(`/transfers/${id}/qr`, true)
+    return response.data
+  },
+
   async revokeTransfer(id) {
     const response = await api.delete(`/transfers/${id}`, true)
     return response.data

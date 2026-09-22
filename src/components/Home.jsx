@@ -41,6 +41,10 @@ export default function Home() {
   const [transferLink, setTransferLink] = useState('')
   const [transferId, setTransferId] = useState('')
   const [emailWarning, setEmailWarning] = useState('')
+  const [emailStatusError, setEmailStatusError] = useState('')
+  const [recipients, setRecipients] = useState([])
+  const [qrCodeUrl, setQrCodeUrl] = useState('')
+  const [resending, setResending] = useState(false)
 
   const total = useMemo(() => files.reduce((sum, file) => sum + file.size, 0), [files])
 
@@ -119,6 +123,10 @@ export default function Home() {
     setFiles([])
     setTransferLink('')
     setTransferId('')
+    setRecipients([])
+    setQrCodeUrl('')
+    setEmailStatusError('')
+    setResending(false)
   }
 
   const start = async () => {
@@ -132,6 +140,10 @@ export default function Home() {
     setError('')
     setTransferLink('')
     setTransferId('')
+    setRecipients([])
+    setQrCodeUrl('')
+    setEmailStatusError('')
+    setResending(false)
 
     if (options.email && isLocalhost) {
       setEmailWarning('You are running SENDLY locally. External recipients cannot access localhost links. Start the public tunnel for phone/external access.')
@@ -250,11 +262,31 @@ export default function Home() {
         await uploadService.completeUpload(uploadId, key, parts)
       }
 
-      await transferService.completeTransfer(transferId)
+      const completion = await transferService.completeTransfer(transferId)
+      const completionData = completion.data || {}
+      setRecipients(completionData.recipients || [])
+      setQrCodeUrl(completionData.qrCodeUrl || '')
       setStage('complete')
     } catch (err) {
       setError(err.message || 'Upload failed')
       setStage('error')
+    }
+  }
+
+  const resendEmails = async () => {
+    if (!transferId) return
+    setResending(true)
+    setEmailStatusError('')
+    try {
+      const response = await transferService.resendEmail(transferId)
+      const responseData = response.data || {}
+      if (responseData.recipients) {
+        setRecipients(responseData.recipients)
+      }
+    } catch (err) {
+      setEmailStatusError(err.message || 'Unable to resend email')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -280,7 +312,11 @@ export default function Home() {
     setError('')
     setTransferLink('')
     setTransferId('')
+    setRecipients([])
+    setQrCodeUrl('')
     setEmailWarning('')
+    setEmailStatusError('')
+    setResending(false)
   }, [])
 
   const renderAuthForm = () => {
@@ -435,7 +471,7 @@ export default function Home() {
 
           {stage === 'complete' && transferLink && (
             <motion.div key="complete" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.28 }}>
-              <CompletePanel files={files} link={transferLink} transferId={transferId} expiresIn={options.expiration} passwordEnabled={options.passwordEnabled} onShare={(mode) => setShareOpen(true)} />
+              <CompletePanel files={files} link={transferLink} transferId={transferId} expiresIn={options.expiration} passwordEnabled={options.passwordEnabled} recipients={recipients} qrCodeUrl={qrCodeUrl} onShare={() => setShareOpen(true)} onResend={resendEmails} resending={resending} emailStatusError={emailStatusError} />
               <div className="mt-6 text-center">
                 <button onClick={reset} className="text-sm font-medium text-neutral-500 underline decoration-neutral-300 underline-offset-4 transition hover:text-neutral-950 hover:decoration-neutral-950">
                   Send another transfer
@@ -446,7 +482,7 @@ export default function Home() {
         </AnimatePresence>
       </div>
 
-      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} link={transferLink} />
+      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} link={transferLink} qrCodeUrl={qrCodeUrl} />
     </div>
   )
 }

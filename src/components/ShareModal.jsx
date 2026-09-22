@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Copy, Download, Mail, QrCode, Share2, X, AlertTriangle } from 'lucide-react'
 import Modal from './Modal.jsx'
 
-export default function ShareModal({ open, onClose, link }) {
+export default function ShareModal({ open, onClose, link, qrCodeUrl = '' }) {
   const [copied, setCopied] = useState(false)
 
   const isLocalhost = useMemo(() => {
@@ -15,7 +15,7 @@ export default function ShareModal({ open, onClose, link }) {
     }
   }, [link])
 
-  const qrUrl = link ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}` : ''
+  const qrUrl = qrCodeUrl || (link ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}` : '')
 
   const copy = async () => {
     if (!link) return
