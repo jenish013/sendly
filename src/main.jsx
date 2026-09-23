@@ -6,7 +6,11 @@ import './styles.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
+<<<<<<< HEAD
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+=======
+    <BrowserRouter>
+>>>>>>> origin/main
       <App />
     </BrowserRouter>
   </React.StrictMode>

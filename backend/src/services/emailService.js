@@ -1,7 +1,10 @@
 const nodemailer = require('nodemailer');
 const net = require('net');
 const QRCode = require('qrcode');
+<<<<<<< HEAD
 const emailjs = require('@emailjs/nodejs');
+=======
+>>>>>>> origin/main
 const logger = require('../utils/logger');
 
 const DEFAULT_FRONTEND_URL = 'http://localhost:5173';
@@ -27,7 +30,11 @@ const getEmailConfig = () => {
   const provider = (process.env.EMAIL_PROVIDER || 'smtp').toLowerCase();
 
   return {
+<<<<<<< HEAD
     provider: ['smtp', 'resend', 'sendgrid', 'emailjs'].includes(provider) ? provider : 'smtp',
+=======
+    provider: ['smtp', 'resend', 'sendgrid'].includes(provider) ? provider : 'smtp',
+>>>>>>> origin/main
     host: process.env.EMAIL_HOST,
     port: parseInt(process.env.EMAIL_PORT || '587', 10),
     secure: process.env.EMAIL_SECURE === 'true',
@@ -36,10 +43,13 @@ const getEmailConfig = () => {
     from: process.env.EMAIL_FROM || 'SENDLY <no-reply@sendly.com>',
     resendKey: process.env.RESEND_API_KEY,
     sendgridKey: process.env.SENDGRID_API_KEY,
+<<<<<<< HEAD
     emailjsServiceId: process.env.EMAILJS_SERVICE_ID,
     emailjsTemplateId: process.env.EMAILJS_TEMPLATE_ID,
     emailjsPublicKey: process.env.EMAILJS_PUBLIC_KEY,
     emailjsPrivateKey: process.env.EMAILJS_PRIVATE_KEY,
+=======
+>>>>>>> origin/main
     clientUrl: normalizeOrigin(process.env.CLIENT_URL),
     transferBaseUrl: normalizeOrigin(process.env.TRANSFER_BASE_URL)
   };
@@ -345,7 +355,11 @@ const sendViaSmtp = async (transfer, publicOrigin, config = getEmailConfig(), op
   }
   if (recipients.length === 0) return [];
 
+<<<<<<< HEAD
   const html = await generateEmailHTML(transfer, publicOrigin);
+=======
+  const html = generateEmailHTML(transfer, publicOrigin);
+>>>>>>> origin/main
   const text = generateEmailText(transfer, publicOrigin);
 
   const results = await Promise.all(recipients.map(async recipient => {
@@ -389,7 +403,11 @@ const sendViaResend = async (transfer, publicOrigin, config = getEmailConfig(), 
   }
 
   const recipients = getEmailRecipients(transfer, options);
+<<<<<<< HEAD
   const html = await generateEmailHTML(transfer, publicOrigin);
+=======
+  const html = generateEmailHTML(transfer, publicOrigin);
+>>>>>>> origin/main
   const text = generateEmailText(transfer, publicOrigin);
   const results = [];
 
@@ -462,7 +480,11 @@ const sendViaSendGrid = async (transfer, publicOrigin, config = getEmailConfig()
   }
 
   const recipients = getEmailRecipients(transfer, options);
+<<<<<<< HEAD
   const html = await generateEmailHTML(transfer, publicOrigin);
+=======
+  const html = generateEmailHTML(transfer, publicOrigin);
+>>>>>>> origin/main
   const text = generateEmailText(transfer, publicOrigin);
   const from = parseFromAddress(config.from);
   const results = [];
@@ -519,6 +541,7 @@ const sendViaSendGrid = async (transfer, publicOrigin, config = getEmailConfig()
   return results;
 };
 
+<<<<<<< HEAD
 const getFileNameSummary = (files) => {
   const list = files || [];
   if (list.length === 0) return 'files';
@@ -594,6 +617,8 @@ const sendViaEmailJs = async (transfer, publicOrigin, config = getEmailConfig(),
   return results;
 };
 
+=======
+>>>>>>> origin/main
 const sendTransferEmail = async (transfer, publicOrigin, options = {}) => {
   const config = getEmailConfig();
   const recipients = getEmailRecipients(transfer, options);
@@ -647,18 +672,24 @@ const sendTransferEmail = async (transfer, publicOrigin, options = {}) => {
     return sendViaSendGrid(sanitizedTransfer, publicOrigin, config, { ...options, recipientEmails: sanitizedRecipients.map(r => r.email) });
   }
 
+<<<<<<< HEAD
   if (config.provider === 'emailjs') {
     return sendViaEmailJs(sanitizedTransfer, publicOrigin, config, { ...options, recipientEmails: sanitizedRecipients.map(r => r.email) });
   }
 
+=======
+>>>>>>> origin/main
   return sendViaSmtp(sanitizedTransfer, publicOrigin, config, { ...options, recipientEmails: sanitizedRecipients.map(r => r.email) });
 };
 
 const verifyTransporter = async () => {
   const config = getEmailConfig();
+<<<<<<< HEAD
   if (config.provider === 'emailjs') {
     return Boolean(config.emailjsServiceId && config.emailjsTemplateId && config.emailjsPublicKey && config.emailjsPrivateKey);
   }
+=======
+>>>>>>> origin/main
   if (config.provider !== 'smtp') {
     return Boolean(config.resendKey || config.sendgridKey);
   }

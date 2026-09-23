@@ -3,6 +3,7 @@ const transferService = require('../services/transferService');
 const emailService = require('../services/emailService');
 const AppError = require('../utils/appError');
 
+<<<<<<< HEAD
 const serializeTransfer = async (transfer, includeRecipients = false) => {
   const data = includeRecipients ? transfer.toSenderJSON() : transfer.toPublicJSON();
   const transferUrl = emailService.getTransferUrl(transfer, transfer.publicOrigin);
@@ -11,6 +12,15 @@ const serializeTransfer = async (transfer, includeRecipients = false) => {
     ...data,
     transferUrl,
     qrCodeUrl
+=======
+const serializeTransfer = (transfer, includeRecipients = false) => {
+  const data = includeRecipients ? transfer.toSenderJSON() : transfer.toPublicJSON();
+  const transferUrl = emailService.getTransferUrl(transfer, transfer.publicOrigin);
+  return {
+    ...data,
+    transferUrl,
+    qrCodeUrl: emailService.getQrCodeUrl(transferUrl)
+>>>>>>> origin/main
   };
 };
 
@@ -42,7 +52,11 @@ const completeTransfer = async (req, res, next) => {
 
     const result = await transferService.completeTransfer(transfer.transferId, transfer.files)
 
+<<<<<<< HEAD
     const serializedTransfer = await serializeTransfer(result.transfer, true);
+=======
+    const serializedTransfer = serializeTransfer(result.transfer, true);
+>>>>>>> origin/main
     res.json({
       success: true,
       data: {
@@ -118,7 +132,11 @@ const getSentTransfers = async (req, res, next) => {
     res.json({
       success: true,
       data: {
+<<<<<<< HEAD
         transfers: await Promise.all(transfers.map(transfer => serializeTransfer(transfer, true))),
+=======
+        transfers: transfers.map(transfer => serializeTransfer(transfer, true)),
+>>>>>>> origin/main
         pagination: {
           page,
           limit,
@@ -154,7 +172,11 @@ const getReceivedTransfers = async (req, res, next) => {
     res.json({
       success: true,
       data: {
+<<<<<<< HEAD
         transfers: await Promise.all(transfers.map(transfer => serializeTransfer(transfer))),
+=======
+        transfers: transfers.map(serializeTransfer),
+>>>>>>> origin/main
         pagination: {
           page,
           limit,
@@ -181,7 +203,11 @@ const getTransfer = async (req, res, next) => {
 
     res.json({
       success: true,
+<<<<<<< HEAD
       data: await serializeTransfer(transfer, true)
+=======
+      data: serializeTransfer(transfer, true)
+>>>>>>> origin/main
     });
   } catch (error) {
     next(error);
@@ -236,13 +262,20 @@ const getTransferQr = async (req, res, next) => {
     }
 
     const transferUrl = emailService.getTransferUrl(transfer, transfer.publicOrigin);
+<<<<<<< HEAD
     const qrCodeUrl = await emailService.getQrCodeUrl(transferUrl);
+=======
+>>>>>>> origin/main
     res.json({
       success: true,
       data: {
         transferId: transfer.transferId,
         transferUrl,
+<<<<<<< HEAD
         qrCodeUrl
+=======
+        qrCodeUrl: emailService.getQrCodeUrl(transferUrl)
+>>>>>>> origin/main
       }
     });
   } catch (error) {

@@ -11,7 +11,10 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.454.0",
     "@aws-sdk/s3-request-presigner": "^3.454.0",
+<<<<<<< HEAD
     "@emailjs/nodejs": "^5.0.2",
+=======
+>>>>>>> origin/main
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
